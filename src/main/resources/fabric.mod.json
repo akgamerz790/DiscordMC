@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "discordmc",
+  "version": "${version}",
+  "name": "DiscordMC",
+  "description": "Advanced Discord Rich Presence for Minecraft Fabric.",
+  "authors": [
+    "akgamerz_790"
+  ],
+  "contact": {
+    "sources": "https://github.com/akgamerz_790/DiscordMC"
+  },
+  "license": "Custom",
+  "icon": "assets/discordmc/icon.jpg",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "dev.akgamerz_790.discordmc.DiscordMC"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "minecraft": "~1.21.5",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
