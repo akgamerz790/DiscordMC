@@ -1,0 +1,33 @@
+{
+	"schemaVersion": 1,
+	"id": "discordmc",
+	"version": "${version}",
+	"name": "DiscordMC",
+	"description": "[DiscordMC] THE best DiscordRPC Presence Client for FabricMC because others are shit.",
+	"authors": [
+		"akgamerz_790",
+		"stanthemanfan22",
+		"dominikku12"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "Copyrighted Protective LICENSING",
+	"icon": "assets/hypixelx/DiscordMC.jpg",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"dev.akgamerz_790.discordmc.DiscordMC"
+		]
+	},
+	"mixins": [
+		"discordmc.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.18.4",
+		"minecraft": "~1.21.5",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
