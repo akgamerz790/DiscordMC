@@ -80,6 +80,23 @@ public final class DiscordIpcClient implements Closeable {
             payload.add("assets", assets);
         }
 
+        JsonObject party = new JsonObject();
+        addIfPresent(party, "id", activity.partyId());
+        if (activity.partySize() > 0 && activity.partyMax() >= activity.partySize()) {
+            party.addProperty("size", activity.partySize());
+            party.addProperty("max", activity.partyMax());
+        }
+        if (!party.entrySet().isEmpty()) {
+            payload.add("party", party);
+        }
+
+        JsonObject secrets = new JsonObject();
+        addIfPresent(secrets, "join", activity.joinSecret());
+        if (!secrets.entrySet().isEmpty()) {
+            payload.add("secrets", secrets);
+            payload.addProperty("instance", true);
+        }
+
         args.add("activity", payload);
         root.add("args", args);
         root.addProperty("nonce", UUID.randomUUID().toString());
@@ -92,7 +109,7 @@ public final class DiscordIpcClient implements Closeable {
             return;
         }
         try {
-            setActivity(new Activity(null, null, null, null, null, null, 0));
+            setActivity(new Activity(null, null, null, null, null, null, null, 0, 0, null, 0));
         } catch (IOException ignored) {
         }
     }
@@ -189,6 +206,10 @@ public final class DiscordIpcClient implements Closeable {
         String largeImageText,
         String smallImageKey,
         String smallImageText,
+        String partyId,
+        int partySize,
+        int partyMax,
+        String joinSecret,
         long startTimestamp
     ) {
     }

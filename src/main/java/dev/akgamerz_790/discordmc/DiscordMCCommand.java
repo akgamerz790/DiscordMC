@@ -65,6 +65,10 @@ public final class DiscordMCCommand {
         root.then(booleanSettingNode("showServerIcon", "showServerIcon"));
         root.then(booleanSettingNode("showServerIcon", "icon"));
 
+        root.then(booleanSettingNode("enableJoinInvites", "joinInvite"));
+        root.then(booleanSettingNode("enableJoinInvites", "joinInvites"));
+        root.then(booleanSettingNode("enableJoinInvites", "invite"));
+
         root.then(intervalNode("interval"));
         root.then(intervalNode("int"));
         root.then(intervalNode("rate"));
@@ -192,6 +196,7 @@ public final class DiscordMCCommand {
                         ", showServerName=" + c.showServerName +
                         ", showPlayerCount=" + c.showPlayerCount +
                         ", showMOTD=" + c.showMOTD +
+                        ", joinInvites=" + c.enableJoinInvites +
                         ", interval=" + c.updateIntervalSeconds + "s");
             });
     }
@@ -232,6 +237,7 @@ public final class DiscordMCCommand {
             case "showPlayerCount" -> setKey(source, key, !c.showPlayerCount);
             case "showMOTD" -> setKey(source, key, !c.showMOTD);
             case "showServerIcon" -> setKey(source, key, !c.showServerIcon);
+            case "enableJoinInvites" -> setKey(source, key, !c.enableJoinInvites);
             default -> feedback(source, "Unknown toggle.");
         };
     }
@@ -245,6 +251,7 @@ public final class DiscordMCCommand {
             case "showPlayerCount" -> c.showPlayerCount = value;
             case "showMOTD" -> c.showMOTD = value;
             case "showServerIcon" -> c.showServerIcon = value;
+            case "enableJoinInvites" -> c.enableJoinInvites = value;
             default -> {
                 return feedback(source, "Unknown toggle.");
             }

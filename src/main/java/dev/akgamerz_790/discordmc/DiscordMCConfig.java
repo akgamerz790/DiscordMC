@@ -59,6 +59,7 @@ public final class DiscordMCConfig {
         public boolean showPlayerCount = true;
         public boolean showMOTD = true;
         public boolean showServerIcon = true;
+        public boolean enableJoinInvites = true;
         public boolean privateServerMode = false;
         public String privateServerState = "Playing on a Private server";
         public String menuDetails = "In Minecraft";

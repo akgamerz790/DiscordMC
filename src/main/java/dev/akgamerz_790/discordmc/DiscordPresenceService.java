@@ -9,9 +9,12 @@ import net.minecraft.world.World;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.StringJoiner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -108,6 +111,10 @@ public final class DiscordPresenceService {
                 snapshot.largeImageText,
                 snapshot.smallImageKey,
                 snapshot.smallImageText,
+                snapshot.partyId,
+                snapshot.partySize,
+                snapshot.partyMax,
+                snapshot.joinSecret,
                 startEpochSeconds
             ));
         } catch (IOException e) {
@@ -136,7 +143,11 @@ public final class DiscordPresenceService {
         String largeImageKey,
         String largeImageText,
         String smallImageKey,
-        String smallImageText
+        String smallImageText,
+        String partyId,
+        int partySize,
+        int partyMax,
+        String joinSecret
     ) {
         static PresenceSnapshot capture(MinecraftClient client, DiscordMCConfig.Data config) {
             if (client.world == null || client.player == null) {
@@ -158,6 +169,10 @@ public final class DiscordPresenceService {
                 emptyToNull(config.largeImageMenu),
                 emptyToNull(config.largeImageText),
                 null,
+                null,
+                null,
+                0,
+                0,
                 null
             );
         }
@@ -177,6 +192,10 @@ public final class DiscordPresenceService {
                 pickLargeImageForDimension(client.world.getRegistryKey(), config),
                 emptyToNull(config.largeImageText),
                 null,
+                null,
+                null,
+                0,
+                0,
                 null
             );
         }
@@ -186,6 +205,8 @@ public final class DiscordPresenceService {
             String state = "Playing multiplayer";
             String motd = getMotd(info);
             String resolvedServer = ServerIdentityResolver.resolve(info, motd);
+            String mode = getModeFromSidebar(client);
+            String modeWithVariant = addTeamVariantIfPresent(client, mode);
 
             if (config.privateServerMode) {
                 state = config.privateServerState;
@@ -205,13 +226,22 @@ public final class DiscordPresenceService {
                 }
             }
 
+            if (!config.privateServerMode && "Hypixel".equalsIgnoreCase(resolvedServer) && !modeWithVariant.isEmpty()) {
+                state = state + " | Playing " + modeWithVariant;
+            }
+
             if (!config.privateServerMode) {
-                String mode = getModeFromSidebar(client);
                 String color = getOwnTeamColor(client);
                 if (!mode.isEmpty()) {
-                    details = "Playing " + mode;
-                    if (!color.isEmpty()) {
-                        details = details + " [" + color + "]";
+                    if ("Hypixel".equalsIgnoreCase(resolvedServer)) {
+                        if (!color.isEmpty()) {
+                            details = "Team " + color;
+                        }
+                    } else {
+                        details = "Playing " + mode;
+                        if (!color.isEmpty()) {
+                            details = details + " [" + color + "]";
+                        }
                     }
                 }
             }
@@ -239,13 +269,31 @@ public final class DiscordPresenceService {
                 smallText = resolvedServer.isEmpty() ? null : resolvedServer;
             }
 
+            String partyId = null;
+            int partySize = 0;
+            int partyMax = 0;
+            String joinSecret = null;
+            if (!config.privateServerMode && config.enableJoinInvites && info != null && info.address != null && !info.address.isBlank()) {
+                String address = info.address.trim();
+                String host = ServerIdentityResolver.extractHost(address);
+                partyId = "server:" + (host.isEmpty() ? address.toLowerCase(Locale.ROOT) : host);
+                int[] counts = getPlayerCountParts(client, info);
+                partySize = counts[0];
+                partyMax = counts[1];
+                joinSecret = address;
+            }
+
             return new PresenceSnapshot(
                 details,
                 state,
                 pickLargeImageForDimension(client.world.getRegistryKey(), config),
                 emptyToNull(config.largeImageText),
                 smallKey,
-                smallText
+                smallText,
+                partyId,
+                partySize,
+                partyMax,
+                joinSecret
             );
         }
 
@@ -260,32 +308,49 @@ public final class DiscordPresenceService {
         }
 
         private static String getPlayerCounts(MinecraftClient client, ServerInfo info) {
-            String pingCounts = parseCounts(getFieldString(info, "playerCountLabel"));
-            if (!pingCounts.isEmpty()) {
+            int[] countParts = getPlayerCountParts(client, info);
+            if (countParts[0] > 0 && countParts[1] >= countParts[0]) {
+                return countParts[0] + "/" + countParts[1];
+            }
+            if (countParts[0] > 0) {
+                return Integer.toString(countParts[0]);
+            }
+            return "";
+        }
+
+        private static int[] getPlayerCountParts(MinecraftClient client, ServerInfo info) {
+            int[] pingCounts = parseCountParts(getFieldString(info, "playerCountLabel"));
+            if (pingCounts[0] > 0 && pingCounts[1] > 0) {
                 return pingCounts;
             }
 
-            String tabCounts = parseCounts(getTabHeaderFooter(client));
-            if (!tabCounts.isEmpty()) {
+            int[] tabCounts = parseCountParts(getTabHeaderFooter(client));
+            if (tabCounts[0] > 0 && tabCounts[1] > 0) {
                 return tabCounts;
             }
 
             int online = getOnlineTabCount(client);
             if (online > 0) {
-                return Integer.toString(online);
+                return new int[]{online, 0};
             }
-            return "";
+            return new int[]{0, 0};
         }
 
-        private static String parseCounts(String raw) {
+        private static int[] parseCountParts(String raw) {
             if (raw == null || raw.isBlank()) {
-                return "";
+                return new int[]{0, 0};
             }
             Matcher matcher = PLAYER_COUNT_PATTERN.matcher(raw);
             if (!matcher.find()) {
-                return "";
+                return new int[]{0, 0};
             }
-            return matcher.group(1) + "/" + matcher.group(2);
+            try {
+                int current = Integer.parseInt(matcher.group(1));
+                int max = Integer.parseInt(matcher.group(2));
+                return new int[]{current, max};
+            } catch (NumberFormatException ignored) {
+                return new int[]{0, 0};
+            }
         }
 
         private static int getOnlineTabCount(MinecraftClient client) {
@@ -347,6 +412,85 @@ public final class DiscordPresenceService {
             title = MODE_PREFIX_PATTERN.matcher(title).replaceFirst("");
             title = title.replace('_', ' ');
             return title;
+        }
+
+        private static String addTeamVariantIfPresent(MinecraftClient client, String mode) {
+            String cleanedMode = clean(mode);
+            if (cleanedMode.isEmpty()) {
+                return "";
+            }
+
+            String lower = cleanedMode.toLowerCase(Locale.ROOT);
+            if (!lower.contains("bedwars") && !lower.contains("bed wars")) {
+                return cleanedMode;
+            }
+
+            String variant = getTeamVariant(client);
+            if (variant.isEmpty()) {
+                return cleanedMode;
+            }
+            return cleanedMode + " " + variant;
+        }
+
+        private static String getTeamVariant(MinecraftClient client) {
+            if (client.world == null) {
+                return "";
+            }
+            Object scoreboard = invokeNoArg(client.world, "getScoreboard");
+            if (scoreboard == null) {
+                return "";
+            }
+
+            Object teamsObj = invokeNoArg(scoreboard, "getTeams");
+            if (!(teamsObj instanceof Iterable<?> iterable)) {
+                return "";
+            }
+
+            List<Integer> teamSizes = new ArrayList<>();
+            for (Object team : iterable) {
+                if (team == null || !isColoredTeam(team)) {
+                    continue;
+                }
+                int size = getTeamPlayerCount(team);
+                if (size <= 0) {
+                    continue;
+                }
+                teamSizes.add(size);
+            }
+
+            if (teamSizes.size() < 2) {
+                return "";
+            }
+
+            StringJoiner joiner = new StringJoiner("v");
+            for (Integer size : teamSizes) {
+                joiner.add(Integer.toString(size));
+            }
+            return joiner.toString();
+        }
+
+        private static boolean isColoredTeam(Object team) {
+            Object color = invokeNoArg(team, "getColor");
+            if (color == null) {
+                return false;
+            }
+            String name = color.toString().trim().toUpperCase(Locale.ROOT);
+            return !name.isEmpty() && !"RESET".equals(name);
+        }
+
+        private static int getTeamPlayerCount(Object team) {
+            Object players = invokeNoArg(team, "getPlayerList");
+            if (players instanceof Collection<?> entries) {
+                return entries.size();
+            }
+            if (players instanceof Iterable<?> iterable) {
+                int count = 0;
+                for (Object ignored : iterable) {
+                    count++;
+                }
+                return count;
+            }
+            return -1;
         }
 
         private static Object getSidebarSlotConstant() {
