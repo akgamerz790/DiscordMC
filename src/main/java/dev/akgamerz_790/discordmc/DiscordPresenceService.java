@@ -184,12 +184,14 @@ public final class DiscordPresenceService {
         private static PresenceSnapshot multiplayer(MinecraftClient client, ServerInfo info, DiscordMCConfig.Data config) {
             String details = null;
             String state = "Playing multiplayer";
+            String motd = getMotd(info);
+            String resolvedServer = ServerIdentityResolver.resolve(info, motd);
 
             if (config.privateServerMode) {
                 state = config.privateServerState;
             } else {
-                if (config.showServerName && info != null && info.name != null && !info.name.isBlank()) {
-                    state = "Playing on " + info.name;
+                if (config.showServerName && !resolvedServer.isEmpty()) {
+                    state = "Playing on " + resolvedServer;
                 }
                 if (config.showServerAddress && info != null && info.address != null && !info.address.isBlank()) {
                     state = state + " (" + info.address + ")";
@@ -215,7 +217,6 @@ public final class DiscordPresenceService {
             }
 
             if (details == null && !config.privateServerMode && config.showMOTD) {
-                String motd = getMotd(info);
                 if (!motd.isEmpty()) {
                     details = motd;
                 }
@@ -234,8 +235,8 @@ public final class DiscordPresenceService {
             String smallKey = null;
             String smallText = null;
             if (!config.privateServerMode && config.showServerIcon) {
-                smallKey = emptyToNull(config.smallImageFallback);
-                smallText = info != null ? info.name : null;
+                smallKey = emptyToNull(ServerIdentityResolver.resolveSmallImageKey(info, config.smallImageFallback));
+                smallText = resolvedServer.isEmpty() ? null : resolvedServer;
             }
 
             return new PresenceSnapshot(
